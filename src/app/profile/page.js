@@ -6,12 +6,11 @@ import { useRouter } from "next/navigation"
 
 export default function Profile() {
   const [profile, setProfile] = useState(null)
-  const [user, setUser] = useState(null) // fixed: was session before
+  const [user, setUser] = useState(null) // Supabase user object
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const router = useRouter()
 
-  // Fetch user and profile
   const fetchProfile = async () => {
     const { data: { user }, error: userErr } = await supabaseClient.auth.getUser()
     if (!user || userErr) {
@@ -19,7 +18,7 @@ export default function Profile() {
       return
     }
 
-    setUser(user) // store user
+    setUser(user) // store user object
 
     const { data: profileData, error } = await supabaseClient
       .from("profiles")
@@ -35,9 +34,10 @@ export default function Profile() {
   useEffect(() => {
     fetchProfile()
 
-    const { data: listener } = supabaseClient.auth.onAuthStateChange((_, session) => {
+    const { data: listener } = supabaseClient.auth.onAuthStateChange((event, session) => {
       if (!session) router.push("/auth")
     })
+
     return () => listener.subscription.unsubscribe()
   }, [])
 
@@ -54,11 +54,11 @@ export default function Profile() {
       const res = await fetch("/api/updateProfile", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ 
+        body: JSON.stringify({
           full_name: profile.full_name,
           batch: profile.batch,
           company: profile.company,
-          userId: user.id  // use user.id
+          userId: user.id // always use user.id
         })
       })
 
@@ -74,15 +74,16 @@ export default function Profile() {
   }
 
   const markDataSame = async () => {
-    if (!profile || !user) return
+    if (!user) return
     setSaving(true)
 
     try {
       const res = await fetch("/api/markDataSame", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ userId: user.id }) // use user.id
+        body: JSON.stringify({ userId: user.id })
       })
+
       const data = await res.json()
       if (data.error) alert(data.error)
       else alert("Marked as verified!")
