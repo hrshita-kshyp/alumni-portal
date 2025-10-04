@@ -43,23 +43,29 @@ export default function Profile() {
     await supabaseClient.auth.signOut()
     router.push("/auth")
   }
+const saveProfile = async () => {
+  if (!profile || !session) return
+  setSaving(true)
 
-  const saveProfile = async () => {
-    if (!profile) return
-    setSaving(true)
-    const { error } = await fetch("/api/updateProfile", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        full_name: profile.full_name,
-        batch: profile.batch,
-        company: profile.company
-      })
+  const res = await fetch("/api/updateProfile", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ 
+      full_name: profile.full_name,
+      batch: profile.batch,
+      company: profile.company,
+      userId: session.user.id
     })
-    setSaving(false)
-    if (error) alert("Error updating profile")
-    else alert("Profile updated successfully!")
-  }
+  })
+  
+  const data = await res.json()
+  setSaving(false)
+
+  if (data.error) alert(data.error)
+  else alert("Profile updated successfully!")
+}
+
+
 
   const markDataSame = async () => {
     if (!profile) return
