@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation"
 
 export default function Profile() {
   const [profile, setProfile] = useState(null)
+  const [session, setSession] = useState(null)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const router = useRouter()
@@ -17,7 +18,8 @@ export default function Profile() {
       return
     }
 
-    // Fetch profile from client-safe table access
+    setSession(user)
+
     const { data: profileData, error } = await supabaseClient
       .from("profiles")
       .select("*")
@@ -43,41 +45,53 @@ export default function Profile() {
     await supabaseClient.auth.signOut()
     router.push("/auth")
   }
-const saveProfile = async () => {
-  if (!profile || !session) return
-  setSaving(true)
 
-  const res = await fetch("/api/updateProfile", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ 
-      full_name: profile.full_name,
-      batch: profile.batch,
-      company: profile.company,
-      userId: session.user.id
-    })
-  })
-  
-  const data = await res.json()
-  setSaving(false)
+  const saveProfile = async () => {
+    if (!profile || !session) return
+    setSaving(true)
 
-  if (data.error) alert(data.error)
-  else alert("Profile updated successfully!")
-}
+    try {
+      const res = await fetch("/api/updateProfile", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ 
+          full_name: profile.full_name,
+          batch: profile.batch,
+          company: profile.company,
+          userId: session.id
+        })
+      })
 
-
+      const data = await res.json()
+      if (data.error) alert(data.error)
+      else alert("Profile updated successfully!")
+    } catch (err) {
+      console.log(err)
+      alert("Failed to update profile")
+    } finally {
+      setSaving(false)
+    }
+  }
 
   const markDataSame = async () => {
     if (!profile) return
     setSaving(true)
-    const { error } = await fetch("/api/markDataSame", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({})
-    })
-    setSaving(false)
-    if (error) alert("Error marking verified")
-    else alert("Marked as verified!")
+
+    try {
+      const res = await fetch("/api/markDataSame", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userId: session.id })
+      })
+      const data = await res.json()
+      if (data.error) alert(data.error)
+      else alert("Marked as verified!")
+    } catch (err) {
+      console.log(err)
+      alert("Failed to mark as verified")
+    } finally {
+      setSaving(false)
+    }
   }
 
   if (loading) return <p>Loading...</p>
@@ -86,6 +100,7 @@ const saveProfile = async () => {
   return (
     <div style={{ padding: "2rem", maxWidth: "500px", margin: "0 auto" }}>
       <h1>Edit Profile</h1>
+
       <label>Full Name:</label>
       <input
         type="text"
@@ -116,6 +131,7 @@ const saveProfile = async () => {
       <button onClick={markDataSame} disabled={saving}>
         {saving ? "Processing..." : "Data is same ✅"}
       </button>
+
       <hr style={{ margin: "1rem 0" }} />
       <button onClick={logout} style={{ padding: "0.5rem 1rem" }}>Logout</button>
     </div>
