@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { supabase } from "../../lib/supabaseClient"
+import { supabaseClient } from "@/lib/supabaseClient"
 import { useRouter } from "next/navigation"
 
 export default function Profile() {
@@ -11,13 +11,14 @@ export default function Profile() {
   const router = useRouter()
 
   const fetchProfile = async () => {
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user) {
+    const { data: { user }, error: userErr } = await supabaseClient.auth.getUser()
+    if (!user || userErr) {
       router.push("/auth")
       return
     }
 
-    const { data: profileData, error } = await supabase
+    // Fetch profile from client-safe table access
+    const { data: profileData, error } = await supabaseClient
       .from("profiles")
       .select("*")
       .eq("id", user.id)
@@ -31,7 +32,7 @@ export default function Profile() {
   useEffect(() => {
     fetchProfile()
 
-    const { data: listener } = supabase.auth.onAuthStateChange((event, session) => {
+    const { data: listener } = supabaseClient.auth.onAuthStateChange((event, session) => {
       if (!session) router.push("/auth")
     })
 
@@ -39,33 +40,37 @@ export default function Profile() {
   }, [])
 
   const logout = async () => {
-    await supabase.auth.signOut()
+    await supabaseClient.auth.signOut()
     router.push("/auth")
   }
 
   const saveProfile = async () => {
+    if (!profile) return
     setSaving(true)
-    const { error } = await supabase
-      .from("profiles")
-      .update({
+    const { error } = await fetch("/api/updateProfile", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
         full_name: profile.full_name,
         batch: profile.batch,
         company: profile.company
       })
-      .eq("id", profile.id)
+    })
     setSaving(false)
-    if (error) alert(error.message)
+    if (error) alert("Error updating profile")
     else alert("Profile updated successfully!")
   }
 
   const markDataSame = async () => {
+    if (!profile) return
     setSaving(true)
-    const { error } = await supabase
-      .from("profiles")
-      .update({ last_verified: new Date().toISOString() })
-      .eq("id", profile.id)
+    const { error } = await fetch("/api/markDataSame", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({})
+    })
     setSaving(false)
-    if (error) alert(error.message)
+    if (error) alert("Error marking verified")
     else alert("Marked as verified!")
   }
 
@@ -100,10 +105,10 @@ export default function Profile() {
       />
 
       <button onClick={saveProfile} disabled={saving} style={{ marginRight: "0.5rem" }}>
-        Save Changes
+        {saving ? "Saving..." : "Save Changes"}
       </button>
       <button onClick={markDataSame} disabled={saving}>
-        Data is same ✅
+        {saving ? "Processing..." : "Data is same ✅"}
       </button>
       <hr style={{ margin: "1rem 0" }} />
       <button onClick={logout} style={{ padding: "0.5rem 1rem" }}>Logout</button>
