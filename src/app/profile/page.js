@@ -12,11 +12,11 @@ export default function Profile() {
   const router = useRouter()
 
   const fetchProfile = async () => {
-    const { data: { user }, error: userErr } = await supabaseClient.auth.getUser()
-    if (!user || userErr) {
-      router.push("/auth")
-      return
-    }
+  const { data: { user }, error: userErr } = await supabaseClient.auth.getUser()
+  if (!user || userErr) { ... }
+
+  setUser(user)  // store user object
+}
 
     setUser(user) // store user object
 
@@ -54,11 +54,13 @@ export default function Profile() {
       const res = await fetch("/api/updateProfile", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          full_name: profile.full_name,
-          batch: profile.batch,
-          company: profile.company,
-          userId: user.id // always use user.id
+       body: JSON.stringify({
+  full_name: profile.full_name,
+  batch: profile.batch,
+  company: profile.company,
+  userId: user.id  // <- correct
+})
+
         })
       })
 
