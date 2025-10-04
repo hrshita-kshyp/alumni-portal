@@ -6,12 +6,12 @@ import { useRouter } from "next/navigation"
 
 export default function Profile() {
   const [profile, setProfile] = useState(null)
-  const [user, setUser] = useState(null)
+  const [user, setUser] = useState(null) // fixed: was session before
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const router = useRouter()
 
-  // Fetch user + profile
+  // Fetch user and profile
   const fetchProfile = async () => {
     const { data: { user }, error: userErr } = await supabaseClient.auth.getUser()
     if (!user || userErr) {
@@ -19,7 +19,7 @@ export default function Profile() {
       return
     }
 
-    setUser(user)
+    setUser(user) // store user
 
     const { data: profileData, error } = await supabaseClient
       .from("profiles")
@@ -32,15 +32,14 @@ export default function Profile() {
     setLoading(false)
   }
 
- useEffect(() => {
-  fetchProfile()
+  useEffect(() => {
+    fetchProfile()
 
-  const { data: listener } = supabaseClient.auth.onAuthStateChange((event, session) => {
-    if (!session) router.push("/auth")
-  })
-
-  return () => listener.subscription.unsubscribe()
-}, [])
+    const { data: listener } = supabaseClient.auth.onAuthStateChange((_, session) => {
+      if (!session) router.push("/auth")
+    })
+    return () => listener.subscription.unsubscribe()
+  }, [])
 
   const logout = async () => {
     await supabaseClient.auth.signOut()
@@ -59,7 +58,7 @@ export default function Profile() {
           full_name: profile.full_name,
           batch: profile.batch,
           company: profile.company,
-          userId: user.id
+          userId: user.id  // use user.id
         })
       })
 
@@ -82,7 +81,7 @@ export default function Profile() {
       const res = await fetch("/api/markDataSame", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ userId: user.id })
+        body: JSON.stringify({ userId: user.id }) // use user.id
       })
       const data = await res.json()
       if (data.error) alert(data.error)
