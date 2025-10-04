@@ -13,5 +13,6 @@ export async function POST(req) {
     .eq("id", userId)
 
   if (error) return new Response(JSON.stringify({ error: error.message }), { status: 400 })
+
   return new Response(JSON.stringify({ success: true }), { status: 200 })
 }
