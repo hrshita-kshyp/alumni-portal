@@ -1,44 +1,87 @@
-import { useState } from "react";
-import { supabase } from "../../lib/supabaseClient";
+"use client"
+
+import { useState, useEffect } from "react"
+import { supabaseClient } from "@/lib/supabaseClient"
+import { useRouter } from "next/navigation"
 
 export default function AuthPage() {
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
+  const [email, setEmail] = useState("")
+  const [password, setPassword] = useState("")
+  const [loading, setLoading] = useState(false)
+  const router = useRouter()
+
+  useEffect(() => {
+    supabaseClient.auth.getSession().then(({ data }) => {
+      if (data.session) router.push("/profile")
+    })
+
+    const { data: listener } = supabaseClient.auth.onAuthStateChange((_, session) => {
+      if (session) router.push("/profile")
+    })
+    return () => listener.subscription.unsubscribe()
+  }, [router])
 
   const signUp = async () => {
-    const { error } = await supabase.auth.signUp({ email, password });
-    if (error) alert(error.message);
-    else alert("Check your email to confirm signup!");
-  };
+    if (!email || !password) return alert("Enter email and password")
+    if (password.length < 6) return alert("Password must be at least 6 characters")
+    setLoading(true)
+
+    const { data, error } = await supabaseClient.auth.signUp({
+      email: email.trim(),
+      password
+    })
+    setLoading(false)
+    if (error) return alert(error.message)
+
+    // server API call to create profile
+    try {
+      await fetch("/api/createProfile", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userId: data.user.id })
+      })
+    } catch (err) {
+      console.log("Profile creation failed", err)
+    }
+
+    alert("Signup successful! Check your email to confirm verification.")
+  }
 
   const signIn = async () => {
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
-    if (error) alert(error.message);
-    else window.location.href = "/profile";
-  };
+    if (!email || !password) return alert("Enter email and password")
+    setLoading(true)
+
+    const { error } = await supabaseClient.auth.signInWithPassword({
+      email: email.trim(),
+      password
+    })
+    setLoading(false)
+    if (error) return alert(error.message)
+  }
 
   return (
-    <div className="flex flex-col gap-2 p-4 max-w-sm mx-auto">
-      <h1 className="text-xl font-bold">Login / Register</h1>
+    <div style={{ padding: "2rem", maxWidth: "400px", margin: "0 auto" }}>
+      <h1>Login / Register</h1>
       <input
-        className="border p-2"
+        type="email"
         placeholder="Email"
         value={email}
         onChange={(e) => setEmail(e.target.value)}
+        style={{ display: "block", margin: "0.5rem 0", width: "100%", padding: "0.5rem" }}
       />
       <input
-        className="border p-2"
         type="password"
         placeholder="Password"
         value={password}
         onChange={(e) => setPassword(e.target.value)}
+        style={{ display: "block", margin: "0.5rem 0", width: "100%", padding: "0.5rem" }}
       />
-      <button className="bg-blue-500 text-white p-2" onClick={signIn}>
-        Login
+      <button onClick={signIn} disabled={loading} style={{ marginRight: "0.5rem" }}>
+        {loading ? "Logging in..." : "Login"}
       </button>
-      <button className="bg-green-500 text-white p-2" onClick={signUp}>
-        Register
+      <button onClick={signUp} disabled={loading}>
+        {loading ? "Registering..." : "Register"}
       </button>
     </div>
-  );
+  )
 }
