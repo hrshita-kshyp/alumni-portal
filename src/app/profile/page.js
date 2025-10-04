@@ -6,11 +6,12 @@ import { useRouter } from "next/navigation"
 
 export default function Profile() {
   const [profile, setProfile] = useState(null)
-  const [session, setSession] = useState(null)
+  const [user, setUser] = useState(null)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const router = useRouter()
 
+  // Fetch user + profile
   const fetchProfile = async () => {
     const { data: { user }, error: userErr } = await supabaseClient.auth.getUser()
     if (!user || userErr) {
@@ -18,7 +19,7 @@ export default function Profile() {
       return
     }
 
-    setSession(user)
+    setUser(user)
 
     const { data: profileData, error } = await supabaseClient
       .from("profiles")
@@ -34,7 +35,7 @@ export default function Profile() {
   useEffect(() => {
     fetchProfile()
 
-    const { data: listener } = supabaseClient.auth.onAuthStateChange((event, session) => {
+    const { data: listener } = supabaseClient.auth.onAuthStateChange((_, session) => {
       if (!session) router.push("/auth")
     })
 
@@ -47,7 +48,7 @@ export default function Profile() {
   }
 
   const saveProfile = async () => {
-    if (!profile || !session) return
+    if (!profile || !user) return
     setSaving(true)
 
     try {
@@ -58,7 +59,7 @@ export default function Profile() {
           full_name: profile.full_name,
           batch: profile.batch,
           company: profile.company,
-          userId: session.id
+          userId: user.id
         })
       })
 
@@ -74,14 +75,14 @@ export default function Profile() {
   }
 
   const markDataSame = async () => {
-    if (!profile) return
+    if (!profile || !user) return
     setSaving(true)
 
     try {
       const res = await fetch("/api/markDataSame", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ userId: session.id })
+        body: JSON.stringify({ userId: user.id })
       })
       const data = await res.json()
       if (data.error) alert(data.error)
