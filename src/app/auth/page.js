@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { supabase } from "../../lib/supabaseClient"
+import { supabaseClient } from "@/lib/supabaseClient" // updated import
 import { useRouter } from "next/navigation"
 
 export default function AuthPage() {
@@ -12,18 +12,22 @@ export default function AuthPage() {
 
   // Redirect logged-in users automatically
   useEffect(() => {
-    const { data: listener } = supabase.auth.onAuthStateChange((event, session) => {
+    const session = supabaseClient.auth.getSession().then(({ data }) => {
+      if (data.session) router.push("/profile")
+    })
+
+    const { data: listener } = supabaseClient.auth.onAuthStateChange((event, session) => {
       if (session) router.push("/profile")
     })
     return () => listener.subscription.unsubscribe()
-  }, [])
+  }, [router])
 
   const signUp = async () => {
     if (!email || !password) return alert("Enter email and password")
     if (password.length < 6) return alert("Password must be at least 6 characters")
     setLoading(true)
 
-    const { data, error } = await supabase.auth.signUp({
+    const { data, error } = await supabaseClient.auth.signUp({
       email: email.trim(),
       password
     })
@@ -31,11 +35,16 @@ export default function AuthPage() {
 
     if (error) return alert(error.message)
 
-    // Auto-create profile row
-    const { error: profileError } = await supabase.from("profiles").insert([
-      { id: data.user.id, full_name: "", batch: "", company: "" }
-    ])
-    if (profileError) console.log(profileError.message)
+    // Auto-create profile row using server-side call (optional: can move to API route for security)
+    try {
+      await fetch("/api/createProfile", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userId: data.user.id })
+      })
+    } catch (err) {
+      console.log("Profile creation failed", err)
+    }
 
     alert("Signup successful! Check your email to confirm verification.")
   }
@@ -44,14 +53,14 @@ export default function AuthPage() {
     if (!email || !password) return alert("Enter email and password")
     setLoading(true)
 
-    const { error } = await supabase.auth.signInWithPassword({
+    const { error } = await supabaseClient.auth.signInWithPassword({
       email: email.trim(),
       password
     })
     setLoading(false)
 
     if (error) return alert(error.message)
-    // No need to manually getSession; the onAuthStateChange listener will redirect
+    // onAuthStateChange listener handles redirect
   }
 
   return (
@@ -72,10 +81,10 @@ export default function AuthPage() {
         style={{ display: "block", margin: "0.5rem 0", width: "100%", padding: "0.5rem" }}
       />
       <button onClick={signIn} disabled={loading} style={{ marginRight: "0.5rem" }}>
-        Login
+        {loading ? "Logging in..." : "Login"}
       </button>
       <button onClick={signUp} disabled={loading}>
-        Register
+        {loading ? "Registering..." : "Register"}
       </button>
     </div>
   )
