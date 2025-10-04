@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { supabaseClient } from "@/lib/supabaseClient" // updated import
+import { supabaseClient } from "@/lib/supabaseClient" // uses client-safe vars
 import { useRouter } from "next/navigation"
 
 export default function AuthPage() {
@@ -12,11 +12,11 @@ export default function AuthPage() {
 
   // Redirect logged-in users automatically
   useEffect(() => {
-    const session = supabaseClient.auth.getSession().then(({ data }) => {
+    supabaseClient.auth.getSession().then(({ data }) => {
       if (data.session) router.push("/profile")
     })
 
-    const { data: listener } = supabaseClient.auth.onAuthStateChange((event, session) => {
+    const { data: listener } = supabaseClient.auth.onAuthStateChange((_, session) => {
       if (session) router.push("/profile")
     })
     return () => listener.subscription.unsubscribe()
@@ -32,10 +32,9 @@ export default function AuthPage() {
       password
     })
     setLoading(false)
-
     if (error) return alert(error.message)
 
-    // Auto-create profile row using server-side call (optional: can move to API route for security)
+    // call server-side API to create profile
     try {
       await fetch("/api/createProfile", {
         method: "POST",
@@ -58,9 +57,8 @@ export default function AuthPage() {
       password
     })
     setLoading(false)
-
     if (error) return alert(error.message)
-    // onAuthStateChange listener handles redirect
+    // redirect handled by onAuthStateChange
   }
 
   return (
