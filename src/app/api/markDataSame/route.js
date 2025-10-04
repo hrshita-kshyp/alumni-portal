@@ -1,28 +1,23 @@
 import { getSupabaseServerClient } from "@/lib/supabaseClient"
 
 export async function POST(req) {
-  try {
-    const body = await req.json()
-    const { userId } = body
+  const body = await req.json()
+  const { userId } = body
 
-    if (!userId) {
-      return new Response(JSON.stringify({ error: "Missing user ID" }), { status: 400 })
-    }
-
-    const supabase = getSupabaseServerClient()
-
-    const { error } = await supabase
-      .from("profiles")
-      .update({ last_verified: new Date().toISOString() })
-      .eq("id", userId)
-
-    if (error) {
-      return new Response(JSON.stringify({ error: error.message }), { status: 400 })
-    }
-
-    return new Response(JSON.stringify({ success: true }), { status: 200 })
-  } catch (err) {
-    console.log(err)
-    return new Response(JSON.stringify({ error: "Server error" }), { status: 500 })
+  if (!userId) {
+    return new Response(JSON.stringify({ error: "Missing user ID" }), { status: 400 })
   }
+
+  const supabase = getSupabaseServerClient()
+
+  const { error } = await supabase
+    .from("profiles")
+    .update({ last_verified: new Date().toISOString() })
+    .eq("id", userId)
+
+  if (error) {
+    return new Response(JSON.stringify({ error: error.message }), { status: 400 })
+  }
+
+  return new Response(JSON.stringify({ success: true }), { status: 200 })
 }
