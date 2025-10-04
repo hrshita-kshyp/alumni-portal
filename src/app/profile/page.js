@@ -6,24 +6,24 @@ import { useRouter } from "next/navigation"
 
 export default function Profile() {
   const [profile, setProfile] = useState(null)
-  const [user, setUser] = useState(null) // Supabase user object
+  const [user, setUser] = useState(null)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const router = useRouter()
 
   const fetchProfile = async () => {
-    const { data: { user }, error: userErr } = await supabaseClient.auth.getUser()
-    if (!user || userErr) {
+    const { data: { user: currentUser }, error: userErr } = await supabaseClient.auth.getUser()
+    if (!currentUser || userErr) {
       router.push("/auth")
       return
     }
 
-    setUser(user) // store user object
+    setUser(currentUser)
 
     const { data: profileData, error } = await supabaseClient
       .from("profiles")
       .select("*")
-      .eq("id", user.id)
+      .eq("id", currentUser.id)
       .single()
 
     if (error) console.log("Profile fetch error:", error.message)
@@ -34,12 +34,18 @@ export default function Profile() {
   useEffect(() => {
     fetchProfile()
 
-    const { data: listener } = supabaseClient.auth.onAuthStateChange((event, session) => {
-      if (!session) router.push("/auth")
+    const { data: authListener } = supabaseClient.auth.onAuthStateChange((event, currentSession) => {
+      if (!currentSession) {
+        router.push("/auth")
+      }
     })
 
-    return () => listener.subscription.unsubscribe()
-  }, [])
+    return () => {
+      if (authListener?.subscription) {
+        authListener.subscription.unsubscribe()
+      }
+    }
+  }, [router])
 
   const logout = async () => {
     await supabaseClient.auth.signOut()
@@ -47,10 +53,21 @@ export default function Profile() {
   }
 
   const saveProfile = async () => {
-    if (!profile || !user) return
+    if (!profile || !user) {
+      console.log("Missing profile or user:", { profile, user })
+      return
+    }
+    
     setSaving(true)
 
     try {
+      console.log("Saving profile with data:", {
+        full_name: profile.full_name,
+        batch: profile.batch,
+        company: profile.company,
+        userId: user.id
+      })
+
       const res = await fetch("/api/updateProfile", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -62,19 +79,30 @@ export default function Profile() {
         })
       })
 
+      console.log("Response status:", res.status)
       const data = await res.json()
-      if (data.error) alert(data.error)
-      else alert("Profile updated successfully!")
+      console.log("Response data:", data)
+
+      if (data.error) {
+        alert(data.error)
+      } else {
+        alert("Profile updated successfully!")
+        await fetchProfile()
+      }
     } catch (err) {
-      console.log(err)
-      alert("Failed to update profile")
+      console.error("Save error:", err)
+      alert("Failed to update profile: " + err.message)
     } finally {
       setSaving(false)
     }
   }
 
   const markDataSame = async () => {
-    if (!user) return
+    if (!user) {
+      console.log("Missing user:", user)
+      return
+    }
+    
     setSaving(true)
 
     try {
@@ -85,11 +113,15 @@ export default function Profile() {
       })
 
       const data = await res.json()
-      if (data.error) alert(data.error)
-      else alert("Marked as verified!")
+      if (data.error) {
+        alert(data.error)
+      } else {
+        alert("Marked as verified!")
+        await fetchProfile()
+      }
     } catch (err) {
-      console.log(err)
-      alert("Failed to mark as verified")
+      console.error("Mark data same error:", err)
+      alert("Failed to mark as verified: " + err.message)
     } finally {
       setSaving(false)
     }
