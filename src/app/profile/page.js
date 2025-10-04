@@ -32,15 +32,15 @@ export default function Profile() {
     setLoading(false)
   }
 
-  useEffect(() => {
-    fetchProfile()
+ useEffect(() => {
+  fetchProfile()
 
-    const { data: listener } = supabaseClient.auth.onAuthStateChange((_, session) => {
-      if (!session) router.push("/auth")
-    })
+  const { data: listener } = supabaseClient.auth.onAuthStateChange((event, session) => {
+    if (!session) router.push("/auth")
+  })
 
-    return () => listener.subscription.unsubscribe()
-  }, [])
+  return () => listener.subscription.unsubscribe()
+}, [])
 
   const logout = async () => {
     await supabaseClient.auth.signOut()
