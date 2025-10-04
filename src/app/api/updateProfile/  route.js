@@ -1,17 +1,26 @@
-import { getSupabaseServerClient } from "@/lib/supabaseClient"
+// app/api/updateProfile/route.js
+import { getSupabaseServerClient } from "@/lib/supabaseClient";
 
-export default async function handler(req, res) {
-  if (req.method !== "POST") return res.status(405).json({ error: "Method not allowed" })
+export async function POST(req) {
+  try {
+    const { full_name, batch, company, userId } = await req.json();
 
-  const { full_name, batch, company, userId } = req.body
-  if (!userId) return res.status(400).json({ error: "Missing user ID" })
+    if (!userId) {
+      return new Response(JSON.stringify({ error: "Missing user ID" }), { status: 400 });
+    }
 
-  const supabase = getSupabaseServerClient()
-  const { error } = await supabase
-    .from("profiles")
-    .update({ full_name, batch, company, last_verified: new Date().toISOString() })
-    .eq("id", userId)
+    const supabase = getSupabaseServerClient();
+    const { error } = await supabase
+      .from("profiles")
+      .update({ full_name, batch, company, last_verified: new Date().toISOString() })
+      .eq("id", userId);
 
-  if (error) return res.status(400).json({ error: error.message })
-  return res.status(200).json({ success: true })
+    if (error) {
+      return new Response(JSON.stringify({ error: error.message }), { status: 400 });
+    }
+
+    return new Response(JSON.stringify({ success: true }), { status: 200 });
+  } catch (err) {
+    return new Response(JSON.stringify({ error: err.message }), { status: 500 });
+  }
 }
